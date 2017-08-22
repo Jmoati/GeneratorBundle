@@ -1,0 +1,11 @@
+
+/**
+ * @param {{ variableType }}${{ variableName }}
+ * @return {{ entity }}
+ */
+public function {{ methodName }}({{ methodTypeHint }}${{ variableName }}): {{ entity }}
+{
+{{ update_owning_side }}{{ spaces }}$this->{{ fieldName }}->add(${{ variableName }});
+
+{{ spaces }}return $this;
+}

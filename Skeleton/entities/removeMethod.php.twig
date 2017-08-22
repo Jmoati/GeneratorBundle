@@ -1,0 +1,10 @@
+/**
+ * @param {{ variableType }}${{ variableName }}
+ * @return {{ entity }}
+ */
+public function {{ methodName }}({{ methodTypeHint }}${{ variableName }}): self
+{
+{{ update_owning_side }}{{ spaces }}$this->{{ fieldName }}->removeElement(${{ variableName }});
+
+{{ spaces }}return $this;
+}

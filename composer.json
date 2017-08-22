@@ -1,0 +1,18 @@
+{
+    "name": "jmoati/generator-bundle",
+    "description": "Generate getters and setters for symfony 2, 3 or 4 with php7.1 TypeHint",
+    "type": "symfony-bundle",
+    "license": "CeCILL",
+    "authors": [
+        {
+            "name": "Jacques Moati",
+            "email": "jacques@moati.net"
+        }
+    ],
+    "require": {
+        
+    },
+    "autoload": {
+        "psr-4": { "Jmoati\\GeneratorBundle\\": "" }
+    }
+}

@@ -1,0 +1,17 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Jmoati\GeneratorBundle\Service\:
+        resource: '../../Service'
+        public: true
+
+    Jmoati\GeneratorBundle\Generator\:
+        resource: '../../Generator'
+        public: true
+
+    Jmoati\GeneratorBundle\Mapping\:
+        resource: '../../Mapping'
+        public: true

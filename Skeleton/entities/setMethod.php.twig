@@ -1,0 +1,10 @@
+/**
+ * @param {{ variableType }} ${{ variableName }}
+ * @return {{ entity }}
+ */
+public function {{ methodName }}({{ methodTypeHint }}${{ variableName }}{{ variableDefault }}): self
+{
+{{ spaces }}$this->{{ fieldName }} = ${{ variableName }};
+
+{{ spaces }}return $this;
+}
