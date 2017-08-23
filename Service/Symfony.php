@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jmoati\GeneratorBundle\Service;
 
 use Doctrine\Bundle\DoctrineBundle\Mapping\DisconnectedMetadataFactory;
@@ -15,18 +17,17 @@ class Symfony
      */
     public function getEntities($symfony, $namespace = true, $shortName = true)
     {
-        $result     = array();
-        $namespaces = array();
-        $shortNames = array();
+        $result = [];
+        $namespaces = [];
+        $shortNames = [];
 
         foreach ($symfony->get('kernel')->getBundles() as $bundle) {
-
-            if (false !== strpos($bundle->getPath(), dirname($symfony->get('kernel')->getRootDir()) . '/vendor/')) {
+            if (false !== mb_strpos($bundle->getPath(), dirname($symfony->get('kernel')->getRootDir()).'/vendor/')) {
                 continue;
             }
 
             try {
-                $manager  = new DisconnectedMetadataFactory($symfony->get('doctrine'));
+                $manager = new DisconnectedMetadataFactory($symfony->get('doctrine'));
                 $metadata = $manager->getNamespaceMetadata($bundle->getNamespace());
 
                 if (true === $namespace) {
@@ -41,7 +42,7 @@ class Symfony
                         $namespaces[] = str_replace('\\', '/', $entity->getName());
                     }
                     if (true === $shortName) {
-                        $shortNames[] = $bundle->getName() . ':' . basename(str_replace('\\', '/', $entity->name));
+                        $shortNames[] = $bundle->getName().':'.basename(str_replace('\\', '/', $entity->name));
                     }
                 }
             } catch (\Exception $e) {

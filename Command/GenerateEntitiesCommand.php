@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jmoati\GeneratorBundle\Command;
 
 use Doctrine\ORM\Tools\EntityRepositoryGenerator;
-use Jmoati\GeneratorBundle\Mapping\DisconnectedMetadataFactory;
 use Jmoati\GeneratorBundle\Generator\EntityGenerator;
+use Jmoati\GeneratorBundle\Mapping\DisconnectedMetadataFactory;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -29,7 +31,7 @@ class GenerateEntitiesCommand extends ContainerAwareCommand
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $manager  = new DisconnectedMetadataFactory($this->getContainer()->get('doctrine'));
+        $manager = new DisconnectedMetadataFactory($this->getContainer()->get('doctrine'));
         $metadata = $this->getMetadata($input, $output, $manager);
 
         $entity_generator = $this->getContainer()->get(EntityGenerator::class)
@@ -48,9 +50,9 @@ class GenerateEntitiesCommand extends ContainerAwareCommand
             }
 
             $output->writeln(sprintf('  > generating <comment>%s</comment>', $m->name));
-            $entity_generator->generate(array($m), $entityMetadata->getPath());
+            $entity_generator->generate([$m], $entityMetadata->getPath());
 
-            if ($m->customRepositoryClassName && false !== strpos($m->customRepositoryClassName, $metadata->getNamespace())) {
+            if ($m->customRepositoryClassName && false !== mb_strpos($m->customRepositoryClassName, $metadata->getNamespace())) {
                 $repository_generator->writeEntityRepositoryClass($m->customRepositoryClassName, $metadata->getPath());
             }
         }
@@ -64,9 +66,9 @@ class GenerateEntitiesCommand extends ContainerAwareCommand
     protected function getSkeletonDirs()
     {
         $dir = dirname(__DIR__);
-        $skeletonDirs = array(
-            $dir . '/Skeleton',
-        );
+        $skeletonDirs = [
+            $dir.'/Skeleton',
+        ];
 
         return $skeletonDirs;
     }
@@ -87,8 +89,8 @@ class GenerateEntitiesCommand extends ContainerAwareCommand
         } catch (\InvalidArgumentException $e) {
             $name = strtr($input->getArgument('name'), '/', '\\');
 
-            if (false !== $pos = strpos($name, ':')) {
-                $name = $this->getContainer()->get('doctrine')->getAliasNamespace(substr($name, 0, $pos)).'\\'.substr($name, $pos + 1);
+            if (false !== $pos = mb_strpos($name, ':')) {
+                $name = $this->getContainer()->get('doctrine')->getAliasNamespace(mb_substr($name, 0, $pos)).'\\'.mb_substr($name, $pos + 1);
             }
 
             if (class_exists($name)) {

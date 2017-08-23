@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jmoati\GeneratorBundle\Service;
 
 class Uses
@@ -11,17 +13,17 @@ class Uses
      */
     public function getCurrentUses($class_name)
     {
-        $uses       = array();
+        $uses = [];
         $reflection = new \ReflectionClass($class_name);
-        $file       = file($reflection->getFileName(), FILE_IGNORE_NEW_LINES);
-        $head       = implode("\n", array_slice($file, 1, $reflection->getStartLine() - 2));
+        $file = file($reflection->getFileName(), FILE_IGNORE_NEW_LINES);
+        $head = implode("\n", array_slice($file, 1, $reflection->getStartLine() - 2));
 
         if (preg_match_all('/use\ ([^;]*);/', $head, $matches)) {
-            foreach ($matches[1] AS $match) {
-                $splited = preg_split('/\ AS\ /i', $match, null);
+            foreach ($matches[1] as $match) {
+                $splited = preg_split('/\ AS\ /i', $match);
 
                 if (!isset($splited[1])) {
-                    $namespace  = explode('\\', $splited[0]);
+                    $namespace = explode('\\', $splited[0]);
                     $splited[1] = end($namespace);
                 }
 
@@ -41,13 +43,13 @@ class Uses
     public function getNewUses($uses, $generated_code)
     {
         if (preg_match_all('/\\\\([^\s|^(|^;]*)[\s|(|;]/', $generated_code, $matches)) {
-            foreach ($matches[1] AS $match) {
-                if (!in_array($match, $uses)) {
+            foreach ($matches[1] as $match) {
+                if (!in_array($match, $uses, true)) {
                     $namespace = explode('\\', $match);
-                    $key       = end($namespace);
+                    $key = end($namespace);
 
                     if (isset($uses[$key])) {
-                        $key .= "_" . uniqid();
+                        $key .= '_'.uniqid();
                     }
 
                     $uses[$key] = $match;
@@ -66,12 +68,11 @@ class Uses
      */
     public function generateUsesBlock($uses, $current_namespace)
     {
-        $uses_block = array();
+        $uses_block = [];
 
-        foreach ($uses AS $aliase => $use) {
-
-            $class     = explode("\\", $use);
-            $namespace = implode("\\", array_slice($class, 0, count($class) - 1));
+        foreach ($uses as $aliase => $use) {
+            $class = explode('\\', $use);
+            $namespace = implode('\\', array_slice($class, 0, count($class) - 1));
 
             if ($namespace == $current_namespace) {
                 continue;
@@ -100,11 +101,11 @@ class Uses
     public static function rewriteHead($entity, $uses_block)
     {
         $reflection = new \ReflectionClass($entity);
-        $file       = file($reflection->getFileName(), FILE_IGNORE_NEW_LINES);
-        $code_head  = array_slice($file, 0, $reflection->getStartLine() - 1);
+        $file = file($reflection->getFileName(), FILE_IGNORE_NEW_LINES);
+        $code_head = array_slice($file, 0, $reflection->getStartLine() - 1);
 
         for ($i = 0, $l = count($code_head); $i < $l; ++$i) {
-            if (strstr($code_head[$i], 'use ')) {
+            if (mb_strstr($code_head[$i], 'use ')) {
                 if (isset($uses_block)) {
                     $code_head[$i] = $uses_block;
                     unset($uses_block);
@@ -128,10 +129,10 @@ class Uses
      */
     public function aliasingUse($uses, $body)
     {
-        $full_class  = array();
-        $local_class = array();
+        $full_class = [];
+        $local_class = [];
 
-        foreach ($uses AS $aliase => $use) {
+        foreach ($uses as $aliase => $use) {
             $full_class[] = "\\{$use}";
             $full_class[] = "{$use}";
 
@@ -141,5 +142,4 @@ class Uses
 
         return str_replace($full_class, $local_class, $body);
     }
-
 }

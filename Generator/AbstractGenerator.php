@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jmoati\GeneratorBundle\Generator;
 
 abstract class AbstractGenerator
@@ -16,7 +18,7 @@ abstract class AbstractGenerator
      */
     public function setSkeletonDirs($skeletonDirs)
     {
-        $this->skeletonDirs = is_array($skeletonDirs) ? $skeletonDirs : array($skeletonDirs);
+        $this->skeletonDirs = is_array($skeletonDirs) ? $skeletonDirs : [$skeletonDirs];
 
         return $this;
     }
@@ -28,7 +30,7 @@ abstract class AbstractGenerator
      *
      * @return int
      */
-    protected function renderFile($template, $target, $parameters = array())
+    protected function renderFile($template, $target, $parameters = [])
     {
         if (!is_dir(dirname($target))) {
             mkdir(dirname($target), 0777, true);
@@ -45,12 +47,12 @@ abstract class AbstractGenerator
      */
     protected function render($template, $parameters)
     {
-        $twig = new \Twig_Environment(new \Twig_Loader_Filesystem($this->skeletonDirs), array(
-            'debug'            => true,
-            'cache'            => false,
+        $twig = new \Twig_Environment(new \Twig_Loader_Filesystem($this->skeletonDirs), [
+            'debug' => true,
+            'cache' => false,
             'strict_variables' => true,
-            'autoescape'       => false,
-        ));
+            'autoescape' => false,
+        ]);
 
         return $twig->render($template, $parameters);
     }

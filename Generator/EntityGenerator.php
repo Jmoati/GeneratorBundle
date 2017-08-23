@@ -1,13 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Jmoati\GeneratorBundle\Generator;
 
-use Jmoati\GeneratorBundle\Service\Singularize;
-use Jmoati\GeneratorBundle\Service\Uses;
-use Symfony\Component\Filesystem\Filesystem;
 use Doctrine\Common\Util\Inflector;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\Mapping\ClassMetadataInfo;
+use Jmoati\GeneratorBundle\Service\Singularize;
+use Jmoati\GeneratorBundle\Service\Uses;
+use Symfony\Component\Filesystem\Filesystem;
 
 class EntityGenerator extends AbstractGenerator
 {
@@ -18,9 +20,9 @@ class EntityGenerator extends AbstractGenerator
     /**
      * @var array
      */
-    protected $staticReflection = array();
+    protected $staticReflection = [];
     /**
-     * @var integer
+     * @var int
      */
     protected $numSpaces = 4;
     /**
@@ -34,20 +36,20 @@ class EntityGenerator extends AbstractGenerator
     /**
      * @var array
      */
-    protected $typeAlias = array(
-        Type::DATETIMETZ   => '\DateTime',
-        Type::DATETIME     => '\DateTime',
-        Type::DATE         => '\DateTime',
-        Type::TIME         => '\DateTime',
-        Type::OBJECT       => '\stdClass',
-        Type::BIGINT       => 'integer',
-        Type::SMALLINT     => 'integer',
-        Type::TEXT         => 'string',
-        Type::BLOB         => 'string',
-        Type::DECIMAL      => 'float',
-        Type::JSON_ARRAY   => 'array',
+    protected $typeAlias = [
+        Type::DATETIMETZ => '\DateTime',
+        Type::DATETIME => '\DateTime',
+        Type::DATE => '\DateTime',
+        Type::TIME => '\DateTime',
+        Type::OBJECT => '\stdClass',
+        Type::BIGINT => 'integer',
+        Type::SMALLINT => 'integer',
+        Type::TEXT => 'string',
+        Type::BLOB => 'string',
+        Type::DECIMAL => 'float',
+        Type::JSON_ARRAY => 'array',
         Type::SIMPLE_ARRAY => 'array',
-    );
+    ];
 
     /**
      * @var Uses
@@ -71,9 +73,9 @@ class EntityGenerator extends AbstractGenerator
      */
     public function __construct(Uses $uses, Singularize $singularize, Filesystem $filesystem)
     {
-        $this->uses        = $uses;
+        $this->uses = $uses;
         $this->singularize = $singularize;
-        $this->filesystem  = $filesystem;
+        $this->filesystem = $filesystem;
     }
 
     /**
@@ -95,85 +97,23 @@ class EntityGenerator extends AbstractGenerator
      */
     public function writeEntityClass(ClassMetadataInfo $metadata, $outputDirectory)
     {
-        if (0 === strpos($metadata->namespace, 'App\\')) {
-            $name = substr($metadata->name, 4);
-            $path = $outputDirectory . '/' . str_replace('\\', DIRECTORY_SEPARATOR, $name) . '.php';
-
+        if (0 === mb_strpos($metadata->namespace, 'App\\')) {
+            $name = mb_substr($metadata->name, 4);
+            $path = $outputDirectory.'/'.str_replace('\\', DIRECTORY_SEPARATOR, $name).'.php';
         } else {
-            $path = $outputDirectory . '/' . str_replace('\\', DIRECTORY_SEPARATOR, $metadata->name) . '.php';
+            $path = $outputDirectory.'/'.str_replace('\\', DIRECTORY_SEPARATOR, $metadata->name).'.php';
         }
 
         $this->parseTokensInEntityFile(file_get_contents($path));
 
         if ($this->backupExisting && file_exists($path)) {
-            $backupPath = dirname($path) . DIRECTORY_SEPARATOR . basename($path) . "~";
+            $backupPath = dirname($path).DIRECTORY_SEPARATOR.basename($path).'~';
             if (!copy($path, $backupPath)) {
-                throw new \RuntimeException("Attempt to backup overwritten entity file but copy operation failed.");
+                throw new \RuntimeException('Attempt to backup overwritten entity file but copy operation failed.');
             }
         }
 
         file_put_contents($path, $this->generateUpdatedEntityClass($metadata));
-    }
-
-    /**
-     * @param string $src
-     */
-    protected function parseTokensInEntityFile($src)
-    {
-        $tokens            = token_get_all($src);
-        $lastSeenNamespace = "";
-        $lastSeenClass     = false;
-        $inNamespace       = false;
-        $inClass           = false;
-
-        for ($i = 0, $limit = count($tokens); $i < $limit; ++$i) {
-            $token = $tokens[$i];
-            if (in_array($token[0], array(T_WHITESPACE, T_COMMENT, T_DOC_COMMENT))) {
-                continue;
-            }
-
-            if ($inNamespace) {
-                if ($token[0] == T_NS_SEPARATOR || $token[0] == T_STRING) {
-                    $lastSeenNamespace .= $token[1];
-                } elseif (is_string($token) && in_array($token, array(';', '{'))) {
-                    $inNamespace = false;
-                }
-            }
-
-            if ($inClass) {
-                $inClass                                              = false;
-                $lastSeenClass                                        = $lastSeenNamespace . ($lastSeenNamespace ? '\\' : '') . $token[1];
-                $this->staticReflection[$lastSeenClass]['properties'] = array();
-                $this->staticReflection[$lastSeenClass]['methods']    = array();
-            }
-
-            if ($token[0] == T_NAMESPACE) {
-                $lastSeenNamespace = "";
-                $inNamespace       = true;
-            } else {
-                if ($token[0] == T_CLASS) {
-                    $inClass = true;
-                } else {
-                    if ($token[0] == T_FUNCTION) {
-                        if ($tokens[$i + 2][0] == T_STRING) {
-                            $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 2][1];
-                        } else {
-                            if ($tokens[$i + 2] == "&" && $tokens[$i + 3][0] == T_STRING) {
-                                $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 3][1];
-                            }
-                        }
-                    } else {
-                        if (in_array(
-                                $token[0],
-                                array(T_VAR, T_PUBLIC, T_PRIVATE, T_PROTECTED)
-                            ) && $tokens[$i + 2][0] != T_FUNCTION
-                        ) {
-                            $this->staticReflection[$lastSeenClass]['properties'][] = substr($tokens[$i + 2][1], 1);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -183,16 +123,114 @@ class EntityGenerator extends AbstractGenerator
      */
     public function generateUpdatedEntityClass(ClassMetadataInfo $metadata)
     {
-        $body       = $this->generateEntityBody($metadata);
-        $uses       = $this->uses->getCurrentUses($metadata->getName());
-        $uses       = $this->uses->getNewUses($uses, $body);
+        $body = $this->generateEntityBody($metadata);
+        $uses = $this->uses->getCurrentUses($metadata->getName());
+        $uses = $this->uses->getNewUses($uses, $body);
         $uses_block = $this->uses->generateUsesBlock($uses, $metadata->namespace);
 
         $code = $this->uses->rewriteHead($metadata->rootEntityName, $uses_block);
         $body = $this->uses->aliasingUse($uses, $body);
-        $last = strrpos($code, '}');
+        $last = mb_strrpos($code, '}');
 
-        return substr($code, 0, $last) . $body . (strlen($body) > 0 ? "\n" : '') . "}\n";
+        return mb_substr($code, 0, $last).$body.(mb_strlen($body) > 0 ? "\n" : '')."}\n";
+    }
+
+    /**
+     * @param int $numSpaces
+     *
+     * @return $this
+     */
+    public function setNumSpaces($numSpaces)
+    {
+        $this->spaces = str_repeat(' ', $numSpaces);
+        $this->numSpaces = $numSpaces;
+
+        return $this;
+    }
+
+    /**
+     * @param string $prefix
+     *
+     * @return $this
+     */
+    public function setAnnotationPrefix($prefix)
+    {
+        $this->annotationsPrefix = $prefix;
+
+        return $this;
+    }
+
+    /**
+     * @param bool $bool
+     *
+     * @return $this
+     */
+    public function setBackupExisting($bool)
+    {
+        $this->backupExisting = $bool;
+
+        return $this;
+    }
+
+    /**
+     * @param string $src
+     */
+    protected function parseTokensInEntityFile($src)
+    {
+        $tokens = token_get_all($src);
+        $lastSeenNamespace = '';
+        $lastSeenClass = false;
+        $inNamespace = false;
+        $inClass = false;
+
+        for ($i = 0, $limit = count($tokens); $i < $limit; ++$i) {
+            $token = $tokens[$i];
+            if (in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            if ($inNamespace) {
+                if ($token[0] == T_NS_SEPARATOR || $token[0] == T_STRING) {
+                    $lastSeenNamespace .= $token[1];
+                } elseif (is_string($token) && in_array($token, [';', '{'], true)) {
+                    $inNamespace = false;
+                }
+            }
+
+            if ($inClass) {
+                $inClass = false;
+                $lastSeenClass = $lastSeenNamespace.($lastSeenNamespace ? '\\' : '').$token[1];
+                $this->staticReflection[$lastSeenClass]['properties'] = [];
+                $this->staticReflection[$lastSeenClass]['methods'] = [];
+            }
+
+            if ($token[0] == T_NAMESPACE) {
+                $lastSeenNamespace = '';
+                $inNamespace = true;
+            } else {
+                if ($token[0] == T_CLASS) {
+                    $inClass = true;
+                } else {
+                    if ($token[0] == T_FUNCTION) {
+                        if ($tokens[$i + 2][0] == T_STRING) {
+                            $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 2][1];
+                        } else {
+                            if ($tokens[$i + 2] == '&' && $tokens[$i + 3][0] == T_STRING) {
+                                $this->staticReflection[$lastSeenClass]['methods'][] = $tokens[$i + 3][1];
+                            }
+                        }
+                    } else {
+                        if (in_array(
+                                $token[0],
+                                [T_VAR, T_PUBLIC, T_PRIVATE, T_PROTECTED], true
+                            ) && $tokens[$i + 2][0] != T_FUNCTION
+                        ) {
+                            $this->staticReflection[$lastSeenClass]['properties'][] = mb_substr($tokens[$i + 2][1], 1);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -206,7 +244,7 @@ class EntityGenerator extends AbstractGenerator
         $this->generateEntityAssociationMappingProperties($metadata);
         $stubMethods = $this->generateEntityStubMethods($metadata);
 
-        $code   = array();
+        $code = [];
         $code[] = $this->generateEntityConstructor($metadata);
 
         if ($stubMethods) {
@@ -236,10 +274,10 @@ class EntityGenerator extends AbstractGenerator
      */
     protected function hasProperty($property, ClassMetadataInfo $metadata)
     {
-        return (isset($this->staticReflection[$metadata->name]) && in_array(
+        return isset($this->staticReflection[$metadata->name]) && in_array(
                 $property,
-                $this->staticReflection[$metadata->name]['properties']
-            ));
+                $this->staticReflection[$metadata->name]['properties'], true
+            );
     }
 
     /**
@@ -261,7 +299,7 @@ class EntityGenerator extends AbstractGenerator
      */
     protected function generateEntityStubMethods(ClassMetadataInfo $metadata)
     {
-        $methods = array();
+        $methods = [];
 
         foreach ($metadata->fieldMappings as $fieldMapping) {
             if (!isset($fieldMapping['id']) || !$fieldMapping['id'] || $metadata->generatorType == ClassMetadataInfo::GENERATOR_TYPE_NONE) {
@@ -332,7 +370,7 @@ class EntityGenerator extends AbstractGenerator
         return implode("\n\n", $methods);
     }
 
-    static protected function methodTypeHint($variableType)
+    protected static function methodTypeHint($variableType)
     {
         $hints = [
             'boolean' => 'bool',
@@ -362,9 +400,9 @@ class EntityGenerator extends AbstractGenerator
         $typeHint = null,
         $defaultValue = null
     ) {
-        $methodName = $type . Inflector::classify($fieldName);
+        $methodName = $type.Inflector::classify($fieldName);
 
-        if (in_array($type, array("add", "remove"))) {
+        if (in_array($type, ['add', 'remove'], true)) {
             $methodName = $this->singularize->word($methodName);
         }
 
@@ -374,31 +412,31 @@ class EntityGenerator extends AbstractGenerator
 
         $this->staticReflection[$metadata->name]['methods'][] = $methodName;
 
-        $var            = sprintf("%sMethod", $type);
+        $var = sprintf('%sMethod', $type);
 
-        $types          = Type::getTypesMap();
-        $variableType   = $typeHint ? $this->getType($typeHint) . ' ' : null;
+        $types = Type::getTypesMap();
+        $variableType = $typeHint ? $this->getType($typeHint).' ' : null;
         $methodTypeHint = self::methodTypeHint($variableType);
 
         if ($typeHint && !isset($types[$typeHint])) {
-            $variableType   = '\\' . ltrim($variableType, '\\');
-            $methodTypeHint = '\\' . $typeHint . ' ';
+            $variableType = '\\'.ltrim($variableType, '\\');
+            $methodTypeHint = '\\'.$typeHint.' ';
         }
 
-        $replacements = array(
-            'methodTypeHint'     => $methodTypeHint,
-            'variableType'       => self::methodTypeHint($variableType),
-            'variableName'       => Inflector::camelize($fieldName),
-            'methodName'         => $methodName,
-            'fieldName'          => $fieldName,
-            'variableDefault'    => ($defaultValue !== null) ? (' = ' . $defaultValue) : '',
-            'entity'             => $this->getClassName($metadata),
+        $replacements = [
+            'methodTypeHint' => $methodTypeHint,
+            'variableType' => self::methodTypeHint($variableType),
+            'variableName' => Inflector::camelize($fieldName),
+            'methodName' => $methodName,
+            'fieldName' => $fieldName,
+            'variableDefault' => ($defaultValue !== null) ? (' = '.$defaultValue) : '',
+            'entity' => $this->getClassName($metadata),
             'update_owning_side' => '',
-            'spaces'             => '    ',
-        );
+            'spaces' => '    ',
+        ];
 
-        if (in_array($type, array("add", "remove")) && $typeHint) {
-            $name                         = explode('\\', $typeHint);
+        if (in_array($type, ['add', 'remove'], true) && $typeHint) {
+            $name = explode('\\', $typeHint);
             $replacements['variableName'] = Inflector::camelize(end($name));
         }
 
@@ -406,27 +444,26 @@ class EntityGenerator extends AbstractGenerator
             $func = $metadata->associationMappings[$fieldName]['type'] == ClassMetadataInfo::MANY_TO_MANY ? 'add' : 'set';
             $func .= Inflector::classify($this->getClassName($metadata));
 
-            $replacements['update_owning_side'] = $this->spaces . '$' . $replacements['variableName'] . "->{$func}(\$this);\n";
+            $replacements['update_owning_side'] = $this->spaces.'$'.$replacements['variableName']."->{$func}(\$this);\n";
         }
 
         if ('remove' == $type && $typeHint && !$metadata->associationMappings[$fieldName]['isOwningSide']) {
             if ($metadata->associationMappings[$fieldName]['type'] == ClassMetadataInfo::MANY_TO_MANY) {
-                $func   = "remove";
+                $func = 'remove';
                 $target = '$this';
-
             } else {
-                $func   = "set";
+                $func = 'set';
                 $target = 'null';
             }
 
             $func .= Inflector::classify($this->getClassName($metadata));
 
-            $replacements['update_owning_side'] = $this->spaces . '$' . $replacements['variableName'] . "->{$func}({$target});\n";
+            $replacements['update_owning_side'] = $this->spaces.'$'.$replacements['variableName']."->{$func}({$target});\n";
         }
 
         $method = $this->render("entities/$var.php.twig", $replacements);
 
-        $method    = $this->prefixCodeWithSpaces($method);
+        $method = $this->prefixCodeWithSpaces($method);
         $methods[] = $method;
 
         return $method;
@@ -462,10 +499,10 @@ class EntityGenerator extends AbstractGenerator
      */
     protected function getClassName(ClassMetadataInfo $metadata)
     {
-        return ($pos = strrpos($metadata->name, '\\')) ? substr(
+        return ($pos = mb_strrpos($metadata->name, '\\')) ? mb_substr(
             $metadata->name,
             $pos + 1,
-            strlen($metadata->name)
+            mb_strlen($metadata->name)
         ) : $metadata->name;
     }
 
@@ -479,8 +516,8 @@ class EntityGenerator extends AbstractGenerator
     {
         $lines = explode("\n", $code);
 
-        foreach ($lines AS &$line) {
-            $line = str_repeat($this->spaces, $num) . $line;
+        foreach ($lines as &$line) {
+            $line = str_repeat($this->spaces, $num).$line;
         }
         unset($line);
 
@@ -501,7 +538,7 @@ class EntityGenerator extends AbstractGenerator
         if (isset($associationMapping['joinColumns'])) {
             $joinColumns = $associationMapping['joinColumns'];
         } else {
-            $joinColumns = array();
+            $joinColumns = [];
         }
 
         foreach ($joinColumns as $joinColumn) {
@@ -524,60 +561,23 @@ class EntityGenerator extends AbstractGenerator
             return '';
         }
 
-        $collections = array();
+        $collections = [];
 
         foreach ($metadata->associationMappings as $mapping) {
             if ($mapping['type'] & ClassMetadataInfo::TO_MANY) {
-                $collections[] = '$this->' . $mapping['fieldName'] . ' = new \Doctrine\Common\Collections\ArrayCollection();';
+                $collections[] = '$this->'.$mapping['fieldName'].' = new \Doctrine\Common\Collections\ArrayCollection();';
             }
         }
 
         if ($collections) {
             return $this->prefixCodeWithSpaces(
                 $this->render(
-                    "entities/constructorMethod.php.twig",
-                    array('collections' => $collections, 'spaces' => $this->spaces,)
+                    'entities/constructorMethod.php.twig',
+                    ['collections' => $collections, 'spaces' => $this->spaces]
                 )
             );
         }
 
         return '';
-    }
-
-    /**
-     * @param integer $numSpaces
-     *
-     * @return $this
-     */
-    public function setNumSpaces($numSpaces)
-    {
-        $this->spaces    = str_repeat(' ', $numSpaces);
-        $this->numSpaces = $numSpaces;
-
-        return $this;
-    }
-
-    /**
-     * @param string $prefix
-     *
-     * @return $this
-     */
-    public function setAnnotationPrefix($prefix)
-    {
-        $this->annotationsPrefix = $prefix;
-
-        return $this;
-    }
-
-    /**
-     * @param bool $bool
-     *
-     * @return $this
-     */
-    public function setBackupExisting($bool)
-    {
-        $this->backupExisting = $bool;
-
-        return $this;
     }
 }
