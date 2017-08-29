@@ -377,6 +377,7 @@ class EntityGenerator extends AbstractGenerator
             'integer' => 'int',
             'uuid' => 'string',
             'guid' => 'string',
+            'Doctrine\Common\Collections\ArrayCollection' => 'Doctrine\Common\Collections\Collection'
         ];
 
         return str_replace(array_keys($hints), array_values($hints), $variableType);
@@ -407,7 +408,7 @@ class EntityGenerator extends AbstractGenerator
         }
 
         if ($this->hasMethod($methodName, $metadata)) {
-            return;
+            return '';
         }
 
         $this->staticReflection[$metadata->name]['methods'][] = $methodName;
@@ -426,6 +427,7 @@ class EntityGenerator extends AbstractGenerator
         $replacements = [
             'methodTypeHint' => $methodTypeHint,
             'variableType' => self::methodTypeHint($variableType),
+            'variableTypes' => self::methodTypeHint($variableType),
             'variableName' => Inflector::camelize($fieldName),
             'methodName' => $methodName,
             'fieldName' => $fieldName,
@@ -434,6 +436,12 @@ class EntityGenerator extends AbstractGenerator
             'update_owning_side' => '',
             'spaces' => '    ',
         ];
+
+        if (true === $metadata->hasField($fieldName) && true === $metadata->getFieldMapping($fieldName)['nullable']) {
+            $replacements['variableType'] = '?'.$replacements['variableType'];
+            $replacements['variableTypes'] = trim($replacements['variableTypes']).'|null';
+            $replacements['methodTypeHint'] = '?'.$replacements['methodTypeHint'];
+        }
 
         if (in_array($type, ['add', 'remove'], true) && $typeHint) {
             $name = explode('\\', $typeHint);
@@ -461,7 +469,12 @@ class EntityGenerator extends AbstractGenerator
             $replacements['update_owning_side'] = $this->spaces.'$'.$replacements['variableName']."->{$func}({$target});\n";
         }
 
-        $method = $this->render("entities/$var.php.twig", $replacements);
+        try {
+            $method = $this->render("entities/$var.php.twig", $replacements);
+        } catch (\Exception $e) {
+            var_dump($replacements);
+            die;
+        }
 
         $method = $this->prefixCodeWithSpaces($method);
         $methods[] = $method;
